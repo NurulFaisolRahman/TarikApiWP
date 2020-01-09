@@ -7,33 +7,98 @@ var URL = 'http://localhost/MonitoringPajak/Autentikasi/'
 // var URL = 'http://192.168.43.223/MonitoringPajak/Autentikasi/'
 // var URL = 'http://192.168.1.92/MonitoringPajak/Autentikasi/'
 var Edit = false
-var SinyalOnline
 
 const store = new Store({
   configName: 'Auth',
   defaults: {}
 })
 
-function KirimSinyalOnline(IdWP) {
-  SinyalOnline = schedule.scheduleJob('*/5 * * * * *', function(){
-    if (parseInt(moment().format('HH')) >= store.get('JamBuka') && parseInt(moment().format('HH')) < store.get('JamTutup')) {
-      var DataSinyal = { NPWPD: IdWP, Sinyal: moment().format('YYYY-MM-DD HH:mm:ss') }
+function Jadwal(InputNPWPD,JamBuka,JamTutup) {
+  window['Sinyal'+InputNPWPD] = schedule.scheduleJob('*/1 * * * *', function(){
+    if (parseInt(moment().format('HH')) >= JamBuka && parseInt(moment().format('HH')) < JamTutup) {
+      var DataSinyal = { NPWPD: InputNPWPD, Sinyal: moment().format('YYYY-MM-DD HH:mm:ss') }
       $.post(URL+"UpdateSinyal", DataSinyal)
       console.log('Kirim Sinyal Online Sukses')
     }
   })
-}
-
-function Jadwal(InputNPWPD) {
-  KirimSinyalOnline(InputNPWPD)
-  var Buka = schedule.scheduleJob('0 0 '+store.get('JamBuka')+' * * *', function(){
-      KirimSinyalOnline(InputNPWPD)
+  window['Buka'+InputNPWPD] = schedule.scheduleJob('0 0 '+JamBuka+' * * *', function(){
+      window['Sinyal'+InputNPWPD] = schedule.scheduleJob('*/1 * * * *', function(){
+	    if (parseInt(moment().format('HH')) >= JamBuka && parseInt(moment().format('HH')) < JamTutup) {
+	      var DataSinyal = { NPWPD: InputNPWPD, Sinyal: moment().format('YYYY-MM-DD HH:mm:ss') }
+	      $.post(URL+"UpdateSinyal", DataSinyal)
+	      console.log('Kirim Sinyal Online Sukses')
+	    }
+	  })
       console.log('Jam Buka')
   })
-  var Tutup = schedule.scheduleJob('0 0 '+store.get('JamTutup')+' * * *', function(){
-      SinyalOnline.cancel()
+  window['Tutup'+InputNPWPD] = schedule.scheduleJob('0 0 '+JamTutup+' * * *', function(){
+      window['Sinyal'+InputNPWPD].cancel()
       console.log('Jam Tutup')
   })
+}
+
+function TambahWP(ApiJson){
+	var Akun = { NPWPD: $('#NPWPD').val(),Password: $('#Password').val() }
+	$.post(URL+"/AutentikasiWajibPajak", Akun).done(function(pesan) {
+		if (pesan == 'ok') {
+		// 	var Koneksi = { NPWPD: $('#NPWPD').val(), JenisData: 'api' }
+				// $.post(URL+"UpdateJenisData", Koneksi)
+	        var npwpd = { NPWPD : $('#NPWPD').val()};
+	        $.post(URL+"/JamOperasional", npwpd).done(function(Respon) {
+	          	var Pecah1 = Respon.split("-")
+	          	var Pecah2 = Pecah1[0].split(".")
+	          	var Pecah3 = Pecah1[1].split(".")
+	          	var Buka = parseInt(Pecah2[0])
+	          	var Tutup = parseInt(Pecah3[0])
+	          	var SplitNPWPD = $('#NPWPD').val().split(".")
+	          	var IdWP = SplitNPWPD[0]+SplitNPWPD[1]+SplitNPWPD[2]
+	          	Jadwal(IdWP,Buka,Tutup)
+	          	window['Kirim'+IdWP] = schedule.scheduleJob('*/'+$('#Waktu').val()+' * * * *', function(){
+		          	var DataWP = {}
+		          	DataWP[SplitNPWPD[0]+'.'+SplitNPWPD[1]+'.'+SplitNPWPD[2]] = JSON.parse(ApiJson)
+		          	console.log(DataWP)
+		          	$.post(URL+"InputTransaksiWajibPajak", JSON.stringify(DataWP)).done(function(Respon) {
+		            	if (Respon == 'ok') {
+		              		console.log('Upload Data Api Otomatis, Sukses')
+		            	} else {
+		            		alert('Upload Data Api Otomatis, Gagal')
+		            		window['Kirim'+IdWP].cancel()
+		              		console.log(Respon)
+		           		}
+		          	})
+		        })
+			    if (store.get('DataWP') == undefined) {
+		    		var dataWP = []
+			  	}
+			  	else {
+			  		var dataWP = store.get('DataWP')
+			  	}
+		  	  	var WP = {}
+		  	  	WP['NPWPD'] = $('#NPWPD').val()
+		  	 	WP['URL'] = $('#URL').val()
+		  	  	WP['Waktu'] = $('#Waktu').val()
+		  	  	WP['Status'] = '0'
+		  	  	WP['JamBuka'] = Buka
+		  	  	WP['JamTutup'] = Tutup
+		  	  	dataWP.push(WP)								  	  	
+		  	  	store.set('DataWP', dataWP)
+		  	  	manageRow(store.get('DataWP'))
+		  	  	document.getElementById("NPWPD").value = ''
+	    		document.getElementById("Password").value = ''
+	    		document.getElementById("URL").value = ''
+	    		document.getElementById("Waktu").value = ''
+		        alert('Wajib Pajak Berhasil Ditambahkan')
+	        })
+	    } else if(pesan == 'ko'){
+	   	    alert('NPWPD Tidak Terdaftar DiServer')
+	    } else if (pesan == 'fail') {
+	        alert('Password Salah')
+	    } else if (pesan == 'Disable') {
+	        alert('Akun Di Non Aktifkan Oleh Server')
+	    }
+	}).fail(function(e) {
+      	alert('Koneksi Gagal')
+    })
 }
 
 $('#Simpan').on('click', () => {
@@ -67,66 +132,28 @@ $('#Simpan').on('click', () => {
     		document.getElementById("Waktu").value = ''
     		Edit = false
   		} else {
-  			$.post($('#URL').val()).done(function(Respon) {
-			    if (IsJson(Respon)){
+  			$.post($('#URL').val()).done(function(ResponJson) {
+			    if (IsJson(ResponJson)){
 			      	var datawp = store.get('DataWP')
-				    $.each( datawp, function( key, value ) {
-				    	if (value.NPWPD == document.getElementById("NPWPD").value) {
-				    		alert('NPWPD Sudah Ada')
-				    		return false
-				    	}
-				    	else {
-				    		var Akun = { NPWPD: $('#NPWPD').val(),Password: $('#Password').val() }
-    						$.post(URL+"/AutentikasiWajibPajak", Akun).done(function(pesan) {
-				    			if (pesan == 'ok') {
-				    				var Koneksi = { NPWPD: $('#NPWPD').val(), JenisData: 'api' }
-  									$.post(URL+"UpdateJenisData", Koneksi)
-							        var npwpd = { NPWPD : $('#NPWPD').val()};
-							        $.post(URL+"/JamOperasional", npwpd).done(function(Respon) {
-							          var Pecah1 = Respon.split("-")
-							          var Pecah2 = Pecah1[0].split(".")
-							          var Pecah3 = Pecah1[1].split(".")
-							          store.set('JamBuka', parseInt(Pecah2[0]))
-							          store.set('JamKirim', parseInt(parseInt(Pecah2[0]) + ((parseInt(Pecah3[0]) - parseInt(Pecah2[0]))/2)))
-							          store.set('JamTutup', parseInt(Pecah3[0]))
-							          Jadwal($('#NPWPD').val())
-							          console.log('Jadwal Started')
-							        })
-							    } else if(pesan == 'ko'){
-							   	    alert('NPWPD Tidak Terdaftar DiServer')
-							    } else if (pesan == 'fail') {
-							        alert('Password Salah')
-							    } else if (pesan == 'Disable') {
-							        alert('Akun Di Non Aktifkan Oleh Server')
-							    }
-				    		}).fail(function(e) {
-						      	alert('Koneksi Gagal')
-						    })
-				    	}
-				    })
-			      	// var DataWajibPajak = {}
-			     	 // DataWajibPajak[$('#URL').val()] = JSON.parse(Respon)
-			      	// $.post(URL+"InputTransaksiWajibPajak", JSON.stringify(DataWajibPajak)).done(function(Respon) {
-			      	//   if (Respon == 'ok') {
-			      	//     alert('Data Berhasil Di Upload')
-			     	//   } else {
-			      	//     alert(Respon)
-			      	//   }
-			      	// })
-			      	// var DataWP = store.get('DataWP')
-			  	  	// var WP = {}
-			  	  	// WP['NPWPD'] = $('#NPWPD').val()
-			  	 	 // WP['URL'] = $('#URL').val()
-			  	  	// WP['Waktu'] = $('#Waktu').val()
-			  	  	// WP['Status'] = '0'
-			  	  	// DataWP.push(WP)
-			  	  	// store.set('DataWP', DataWP)
-			  	  	// manageRow(store.get('DataWP'))
+			      	if (datawp == undefined) {
+			      		TambahWP(ResponJson)
+			      	} 
+			      	else {
+			      		$.each( datawp, function( key, value ) {
+					    	if (value.NPWPD == document.getElementById("NPWPD").value) {
+					    		alert('NPWPD Sudah Ada')
+					    		return false
+					    	}
+					    	else {
+					    		TambahWP(ResponJson)
+					    	}
+					    })
+			      	}
 			    }
 			    else {
 			      alert('Respon Data Bukan JSON!')
 			    }
-			    document.getElementById("ApiData").value = Respon
+			    document.getElementById("ApiData").value = ResponJson
 		  	}).fail(function() {
 		    	alert('URL Tidak Valid!')
 		  	})
@@ -193,7 +220,7 @@ manageRow(store.get('DataWP'))
 /* tambahkan data baru pada table */
 function manageRow(data) {
 	var	rows = '';
-	$.each( data.reverse(), function( key, value ) {
+	$.each( data, function( key, value ) {
 	  	rows = rows + '<tr>';
 	  	rows = rows + '<td>'+value.NPWPD+'</td>';
 	  	rows = rows + '<td>'+value.URL+'</td>';
