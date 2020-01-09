@@ -1,0 +1,30 @@
+{
+  "name": "tarikapiwp",
+  "version": "1.0.0",
+  "description": "Menarik Data Transaksi Berupa Web Servis Api Dari Beberapa Wajib Pajak Beserta CRUD",
+  "main": "main.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/NurulFaisolRahman/TarikApiWP.git"
+  },
+  "keywords": [
+    "electron",
+    "MonitoringPajak",
+    "Javascript",
+    "API",
+    "nurulfaisolrahman"
+  ],
+  "author": "nurulfaisolrahman@gmail.com",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/NurulFaisolRahman/TarikApiWP/issues"
+  },
+  "homepage": "https://github.com/NurulFaisolRahman/TarikApiWP#readme",
+  "dependencies": {
+    "datatables.net": "^1.10.20",
+    "jquery": "^3.4.1"
+  }
+}
