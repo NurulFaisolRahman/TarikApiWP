@@ -12,7 +12,22 @@
 <link rel="stylesheet" href="./main.css">
 </head>
 <body>
-	<div class="container-fluid">
+	<div class="login-form" style="display: none;" id="Autentikasi">
+    <form onsubmit="event.preventDefault();" class="border border-danger">
+  		<div class="avatar">
+  			<img src="./avatar.png" alt="Avatar">
+  		</div>
+		<br><br>
+		<div class="form-group">
+       		<input type="text" class="form-control text-center rounded-pill" id="UsernameAdmin" placeholder="Username" required>
+			 <br>
+			 <input type="password" class="form-control text-center rounded-pill" id="PasswordAdmin" placeholder="Password" required>
+			 <br>
+			 <button class="btn btn-lg text-white btn-block rounded-pill" id="Login"><b>SIGN IN</b></button>
+	    </div>	
+	</form>
+	</div>
+	<div class="container-fluid" style="display: block;" id="Dashboard">
         <div class="table-wrapper mt-3">
             <div class="table-title">
                 <div class="row">
@@ -20,7 +35,7 @@
                 		<textarea rows="5" id="ApiData" cols="140"></textarea>
 					</div>
 					<div class="col-sm-12 d-flex justify-content-start">
-						<a class="btn btn-warning"><span><b>Sign Out</b></span></a>	
+						<a class="btn btn-warning" id="Logout"><span><b>Sign Out</b></span></a>	
 						<input style="width: 110px;padding-left: 10px;" class="ml-1" type="text" placeholder="NPWPD" id="NPWPD">
 						<input style="width: 110px;padding-left: 10px;" class="ml-1" type="password" placeholder="Password" id="Password">
 						<input style="width: 510px;padding-left: 10px;" class="ml-1" type="text" placeholder="URL" id="URL">

@@ -13,6 +13,47 @@ const store = new Store({
   defaults: {}
 })
 
+$('#UsernameAdmin').keypress(function(event){
+    var keycode = (event.keyCode ? event.keyCode : event.which);
+    if(keycode == '13'){
+        event.preventDefault();
+        document.getElementById("Login").click();  
+    }
+});
+
+$('#PasswordAdmin').keypress(function(event){
+    var keycode = (event.keyCode ? event.keyCode : event.which);
+    if(keycode == '13'){
+        event.preventDefault();
+        document.getElementById("Login").click();  
+    }
+});
+
+$('#Login').on('click', () => {
+  if ($('#UsernameAdmin').val() == '') {
+    alert('Mohon Input Username')
+  } else if ($('#PasswordAdmin').val() == '') {
+    alert('Mohon Input Password')
+  } else {
+  	var AkunAdmin = { Username: $('#UsernameAdmin').val(),Password: $('#PasswordAdmin').val() }
+    $.post(URL+"/SignInDesktop", AkunAdmin).done(function(ResponAuth) {
+    	if (ResponAuth == 'ok') {
+    		document.getElementById("Autentikasi").style.display = 'none'
+        	document.getElementById("Dashboard").style.display = 'block'
+        	document.getElementById("UsernameAdmin").value = ''
+        	document.getElementById("PasswordAdmin").value = ''
+    	} else {
+    		alert(ResponAuth)
+    	}
+    })
+  }
+})
+
+$('#Logout').on('click', () => {
+	document.getElementById("Autentikasi").style.display = 'block'
+    document.getElementById("Dashboard").style.display = 'none'
+})
+
 window.addEventListener('offline', () => {
   alert('Internet Offline')
   $.each( store.get('DataWP'), function( key, value ) {
@@ -155,10 +196,24 @@ $('#Simpan').on('click', () => {
   		if (Edit) {
 		    $.each( store.get('DataWP'), function( key, value ) {
 		    	if (value.NPWPD == document.getElementById("NPWPD").value) {
+		    		if (window['Sinyal'+value.IdWP] != undefined) {
+						window['Sinyal'+value.IdWP].cancel()
+					}
+					if (window['Buka'+value.IdWP] != undefined) {
+						window['Buka'+value.IdWP].cancel()
+					}
+					if (window['Tutup'+value.IdWP] != undefined) {
+						window['Tutup'+value.IdWP].cancel()
+					}
+					if (window['Kirim'+value.IdWP] != undefined) {
+						window['Kirim'+value.IdWP].cancel()
+					}
 		    		value.URL = $('#URL').val()
 		    		value.Waktu = $('#Waktu').val()
+		    		Jadwal(value.IdWP,value.JamBuka,value.JamTutup,value.Waktu,value.URL)
 		    		store.set('DataWP', store.get('DataWP').reverse())
 	  				manageRow(store.get('DataWP'))
+	  				console.log(value.IdWP+' AutoPilot Edited')
 		    		return false
 		    	}
 		    })
@@ -177,15 +232,17 @@ $('#Simpan').on('click', () => {
 			      		TambahWP($('#URL').val())
 			      	} 
 			      	else {
+			      		var CekNPWPD = true
 			      		$.each( datawp, function( key, value ) {
 					    	if (value.NPWPD == document.getElementById("NPWPD").value) {
 					    		alert('NPWPD Sudah Ada')
+					    		CekNPWPD = false
 					    		return false
 					    	}
-					    	else {
-					    		TambahWP($('#URL').val())
-					    	}
 					    })
+					    if (CekNPWPD) {
+					    	TambahWP($('#URL').val())
+					    }
 			      	}
 			    }
 			    else {
