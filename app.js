@@ -13,36 +13,86 @@ const store = new Store({
   defaults: {}
 })
 
-function Jadwal(InputNPWPD,JamBuka,JamTutup) {
+window.addEventListener('offline', () => {
+  alert('Internet Offline')
+  $.each( store.get('DataWP'), function( key, value ) {
+	if (window['Sinyal'+value.IdWP] != undefined) {
+		window['Sinyal'+value.IdWP].cancel()
+	}
+	if (window['Buka'+value.IdWP] != undefined) {
+		window['Buka'+value.IdWP].cancel()
+	}
+	if (window['Tutup'+value.IdWP] != undefined) {
+		window['Tutup'+value.IdWP].cancel()
+	}
+	if (window['Kirim'+value.IdWP] != undefined) {
+		window['Kirim'+value.IdWP].cancel()
+	}
+  })
+  console.log('AutoPilot Offline Detection Executed')
+})
+
+window.addEventListener('online', () => {
+  	$.each( store.get('DataWP'), function( key, value ) {
+    	Jadwal(value.IdWP,value.JamBuka,value.JamTutup,value.Waktu,value.URL)
+    })
+    console.log('AutoPilot Online Detection Executed')
+})
+
+if (store.get('DataWP') != undefined && store.get('DataWP') != '') {
+	$.each( store.get('DataWP'), function( key, value ) {
+    	Jadwal(value.IdWP,value.JamBuka,value.JamTutup,value.Waktu,value.URL)
+    })
+}
+
+function Jadwal(InputNPWPD,JamBuka,JamTutup,WaktuPengiriman,ApiUrl) {
   window['Sinyal'+InputNPWPD] = schedule.scheduleJob('*/1 * * * *', function(){
     if (parseInt(moment().format('HH')) >= JamBuka && parseInt(moment().format('HH')) < JamTutup) {
-      var DataSinyal = { NPWPD: InputNPWPD, Sinyal: moment().format('YYYY-MM-DD HH:mm:ss') }
+      var DataSinyal = { NPWPD: InputNPWPD.substr(0, 4)+'.'+InputNPWPD.substr(4, 2)+'.'+InputNPWPD.substr(6, 3), Sinyal: moment().format('YYYY-MM-DD HH:mm:ss') }
       $.post(URL+"UpdateSinyal", DataSinyal)
-      console.log('Kirim Sinyal Online Sukses')
+      console.log(InputNPWPD+' Kirim Sinyal Online Sukses')
     }
   })
   window['Buka'+InputNPWPD] = schedule.scheduleJob('0 0 '+JamBuka+' * * *', function(){
       window['Sinyal'+InputNPWPD] = schedule.scheduleJob('*/1 * * * *', function(){
 	    if (parseInt(moment().format('HH')) >= JamBuka && parseInt(moment().format('HH')) < JamTutup) {
-	      var DataSinyal = { NPWPD: InputNPWPD, Sinyal: moment().format('YYYY-MM-DD HH:mm:ss') }
+	      var DataSinyal = { NPWPD: InputNPWPD.substr(0, 4)+'.'+InputNPWPD.substr(4, 2)+'.'+InputNPWPD.substr(6, 3), Sinyal: moment().format('YYYY-MM-DD HH:mm:ss') }
 	      $.post(URL+"UpdateSinyal", DataSinyal)
-	      console.log('Kirim Sinyal Online Sukses')
+	      console.log(InputNPWPD+' Kirim Sinyal Online Sukses')
 	    }
 	  })
       console.log('Jam Buka')
   })
   window['Tutup'+InputNPWPD] = schedule.scheduleJob('0 0 '+JamTutup+' * * *', function(){
       window['Sinyal'+InputNPWPD].cancel()
-      console.log('Jam Tutup')
+      console.log(InputNPWPD+' Jam Tutup')
   })
+  	window['Kirim'+InputNPWPD] = schedule.scheduleJob('*/'+WaktuPengiriman+' * * * *', function(){
+		if (parseInt(moment().format('HH')) >= JamBuka && parseInt(moment().format('HH')) < JamTutup) {
+			$.post(ApiUrl).done(function(DataJson) {
+				var DataWP = {}
+		      	DataWP[InputNPWPD.substr(0, 4)+'.'+InputNPWPD.substr(4, 2)+'.'+InputNPWPD.substr(6, 3)] = JSON.parse(DataJson)
+		      	// console.log(DataWP)
+		      	$.post(URL+"InputTransaksiWajibPajak", JSON.stringify(DataWP)).done(function(respon) {
+		        	if (respon == 'ok') {
+		          		console.log(InputNPWPD+' Otomatis, Sukses')
+		        	} else {
+		        		alert('Upload Data Api Otomatis, Gagal')
+		        		window['Kirim'+InputNPWPD].cancel()
+		          		console.log(respon)
+		       		}
+		      	})
+	        })
+		}
+  	})
 }
 
-function TambahWP(ApiJson){
+function TambahWP(UrlApi){
 	var Akun = { NPWPD: $('#NPWPD').val(),Password: $('#Password').val() }
 	$.post(URL+"/AutentikasiWajibPajak", Akun).done(function(pesan) {
-		if (pesan == 'ok') {
-		// 	var Koneksi = { NPWPD: $('#NPWPD').val(), JenisData: 'api' }
-				// $.post(URL+"UpdateJenisData", Koneksi)
+		if (pesan == 'ok' || pesan == 'api') {
+			var Koneksi = { NPWPD: $('#NPWPD').val(), JenisData: 'api' }
+			$.post(URL+"UpdateJenisData", Koneksi)
 	        var npwpd = { NPWPD : $('#NPWPD').val()};
 	        $.post(URL+"/JamOperasional", npwpd).done(function(Respon) {
 	          	var Pecah1 = Respon.split("-")
@@ -52,21 +102,7 @@ function TambahWP(ApiJson){
 	          	var Tutup = parseInt(Pecah3[0])
 	          	var SplitNPWPD = $('#NPWPD').val().split(".")
 	          	var IdWP = SplitNPWPD[0]+SplitNPWPD[1]+SplitNPWPD[2]
-	          	Jadwal(IdWP,Buka,Tutup)
-	          	window['Kirim'+IdWP] = schedule.scheduleJob('*/'+$('#Waktu').val()+' * * * *', function(){
-		          	var DataWP = {}
-		          	DataWP[SplitNPWPD[0]+'.'+SplitNPWPD[1]+'.'+SplitNPWPD[2]] = JSON.parse(ApiJson)
-		          	console.log(DataWP)
-		          	$.post(URL+"InputTransaksiWajibPajak", JSON.stringify(DataWP)).done(function(Respon) {
-		            	if (Respon == 'ok') {
-		              		console.log('Upload Data Api Otomatis, Sukses')
-		            	} else {
-		            		alert('Upload Data Api Otomatis, Gagal')
-		            		window['Kirim'+IdWP].cancel()
-		              		console.log(Respon)
-		           		}
-		          	})
-		        })
+	          	Jadwal(IdWP,Buka,Tutup,$('#Waktu').val(),UrlApi)
 			    if (store.get('DataWP') == undefined) {
 		    		var dataWP = []
 			  	}
@@ -80,6 +116,7 @@ function TambahWP(ApiJson){
 		  	  	WP['Status'] = '0'
 		  	  	WP['JamBuka'] = Buka
 		  	  	WP['JamTutup'] = Tutup
+		  	  	WP['IdWP'] = IdWP
 		  	  	dataWP.push(WP)								  	  	
 		  	  	store.set('DataWP', dataWP)
 		  	  	manageRow(store.get('DataWP'))
@@ -100,7 +137,6 @@ function TambahWP(ApiJson){
       	alert('Koneksi Gagal')
     })
 }
-
 $('#Simpan').on('click', () => {
 	if ($('#NPWPD').val() == '') {
     	alert('Mohon Input NPWPD')
@@ -128,6 +164,8 @@ $('#Simpan').on('click', () => {
 		    })
   			document.getElementById("NPWPD").value = ''
     		document.getElementById("NPWPD").disabled = false
+    		document.getElementById("Password").disabled = false
+    		document.getElementById("Password").value = ''
     		document.getElementById("URL").value = ''
     		document.getElementById("Waktu").value = ''
     		Edit = false
@@ -135,8 +173,8 @@ $('#Simpan').on('click', () => {
   			$.post($('#URL').val()).done(function(ResponJson) {
 			    if (IsJson(ResponJson)){
 			      	var datawp = store.get('DataWP')
-			      	if (datawp == undefined) {
-			      		TambahWP(ResponJson)
+			      	if (datawp == undefined || datawp == '') {
+			      		TambahWP($('#URL').val())
 			      	} 
 			      	else {
 			      		$.each( datawp, function( key, value ) {
@@ -145,7 +183,7 @@ $('#Simpan').on('click', () => {
 					    		return false
 					    	}
 					    	else {
-					    		TambahWP(ResponJson)
+					    		TambahWP($('#URL').val())
 					    	}
 					    })
 			      	}
@@ -177,6 +215,8 @@ $(document).on("click",".edit",function(){
     	if (value.NPWPD == editWP) {
     		document.getElementById("NPWPD").value = value.NPWPD
     		document.getElementById("NPWPD").disabled = true
+    		document.getElementById("Password").value = ''
+    		document.getElementById("Password").disabled = true
     		document.getElementById("URL").value = value.URL
     		document.getElementById("Waktu").value = value.Waktu
     		Edit = true
@@ -195,6 +235,19 @@ $(document).on("click",".delete",function(){
 	    	var datawp = store.get('DataWP')
 		    $.each( datawp, function( key, value ) {
 		    	if (value.NPWPD == hapusWP) {
+		    		if (window['Sinyal'+value.IdWP] != undefined) {
+						window['Sinyal'+value.IdWP].cancel()
+					}
+					if (window['Buka'+value.IdWP] != undefined) {
+						window['Buka'+value.IdWP].cancel()
+					}
+					if (window['Tutup'+value.IdWP] != undefined) {
+						window['Tutup'+value.IdWP].cancel()
+					}
+					if (window['Kirim'+value.IdWP] != undefined) {
+						window['Kirim'+value.IdWP].cancel()
+					}
+		    		console.log(value.IdWP+' AutoPilot Deleted')
 		    		datawp.splice(key,1)
 		    		store.set('DataWP', datawp)
 		    		manageRow(store.get('DataWP'))
@@ -209,6 +262,24 @@ function Status(status){
 	var datawp = store.get('DataWP')
     $.each( datawp, function( key, value ) {
     	if (value.NPWPD == $(status).attr('Status')) {
+    		if (status.value == '0') {
+    			Jadwal(value.IdWP,value.JamBuka,value.JamTutup,value.Waktu,value.URL)
+    			console.log(value.IdWP+' AutoPilot Enabled')
+    		} else {
+    			if (window['Sinyal'+value.IdWP] != undefined) {
+					window['Sinyal'+value.IdWP].cancel()
+				}
+				if (window['Buka'+value.IdWP] != undefined) {
+					window['Buka'+value.IdWP].cancel()
+				}
+				if (window['Tutup'+value.IdWP] != undefined) {
+					window['Tutup'+value.IdWP].cancel()
+				}
+				if (window['Kirim'+value.IdWP] != undefined) {
+					window['Kirim'+value.IdWP].cancel()
+				}
+	    		console.log(value.IdWP+' AutoPilot Disabled')
+    		}
     		value.Status = status.value
     		store.set('DataWP', datawp)
     		return false
