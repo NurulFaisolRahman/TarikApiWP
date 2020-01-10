@@ -137,11 +137,12 @@ function TambahWP(UrlApi){
       	alert('Koneksi Gagal')
     })
 }
+
 $('#Simpan').on('click', () => {
 	if ($('#NPWPD').val() == '') {
     	alert('Mohon Input NPWPD')
   	}
-  	else if ($('#Password').val() == '') {
+  	else if ($('#Password').val() == '' && Edit == false) {
     	alert('Mohon Input Password')
   	}
   	else if ($('#URL').val() == '') {
@@ -152,12 +153,11 @@ $('#Simpan').on('click', () => {
   	}
   	else {
   		if (Edit) {
-  			var datawp = store.get('DataWP')
-		    $.each( datawp, function( key, value ) {
+		    $.each( store.get('DataWP'), function( key, value ) {
 		    	if (value.NPWPD == document.getElementById("NPWPD").value) {
 		    		value.URL = $('#URL').val()
 		    		value.Waktu = $('#Waktu').val()
-		    		store.set('DataWP', datawp)
+		    		store.set('DataWP', store.get('DataWP').reverse())
 	  				manageRow(store.get('DataWP'))
 		    		return false
 		    	}
@@ -199,6 +199,43 @@ $('#Simpan').on('click', () => {
   	}
 })
 
+$('#Manual').on('click', () => {
+	if ($('#NPWPD').val() == '') {
+    	alert('Mohon Input NPWPD')
+  	}
+  	else if ($('#Password').val() == '') {
+    	alert('Mohon Input Password')
+  	}
+  	else if ($('#URL').val() == '') {
+    	alert('Mohon Input URL')
+  	}
+  	else {
+  		$.post($('#URL').val()).done(function(responJson) {
+		    if (IsJson(responJson)){
+		      	var DataWPManual = { NPWPD: $('#NPWPD').val(), 
+		                       Password: $('#Password').val(), 
+		                       Data : responJson }
+		      	// console.log(DataWPManual)
+		      	$.post(URL+"ApiWP", JSON.stringify(DataWPManual)).done(function(respon) {
+		        	if (JSON.parse(respon).Respon) {
+		          		alert('Data Berhasil Dikirim')
+		        	} else {
+		        		alert(JSON.parse(respon).Deskripsi)
+		       		}
+		      	}).fail(function() {
+			    	alert('Data Gagal Dikirim, Mohon Cek Format Respon Json')
+			  	})
+		    }
+		    else {
+		      alert('Respon Data Bukan JSON!')
+		    }
+		    document.getElementById("ApiData").value = responJson
+	  	}).fail(function() {
+	    	alert('URL Tidak Valid!')
+	  	})
+  	}
+})
+
 function IsJson(str) {
   try {
       JSON.parse(str);
@@ -215,7 +252,7 @@ $(document).on("click",".edit",function(){
     	if (value.NPWPD == editWP) {
     		document.getElementById("NPWPD").value = value.NPWPD
     		document.getElementById("NPWPD").disabled = true
-    		document.getElementById("Password").value = ''
+    		document.getElementById("Password").value = value.Password
     		document.getElementById("Password").disabled = true
     		document.getElementById("URL").value = value.URL
     		document.getElementById("Waktu").value = value.Waktu
@@ -288,27 +325,28 @@ function Status(status){
 }
 
 manageRow(store.get('DataWP'))
-/* tambahkan data baru pada table */
+
 function manageRow(data) {
 	var	rows = '';
-	$.each( data, function( key, value ) {
-	  	rows = rows + '<tr>';
-	  	rows = rows + '<td>'+value.NPWPD+'</td>';
-	  	rows = rows + '<td>'+value.URL+'</td>';
-        rows = rows + '<td>'+value.Waktu+'</td>';
-        rows = rows + '<td>';
-        if (value.Status == '0') {
-        	rows = rows + '<select onchange="Status(this)" class="form-control btn-sm" Status="'+value.NPWPD+'"><option value="0" selected><b>Enable</b></option><option value="1"><b>Disable</b></option></select>';
-        } else {
-        	rows = rows + '<select onchange="Status(this)" class="form-control btn-sm" Status="'+value.NPWPD+'"><option value="0"><b>Enable</b></option><option value="1" selected><b>Disable</b></option></select>';
-        }
-        rows = rows + '</td>';
-	  	rows = rows + '<td>';
-        rows = rows + '<a href="#" EditWP="'+value.NPWPD+'" class="edit"><i class="material-icons" title="Edit">&#xE254;</i></a>';
-        rows = rows + '&nbsp;&nbsp;&nbsp;<a href="#" HapusWP="'+value.NPWPD+'" class="delete"><i class="material-icons" title="Delete">&#xE872;</i></a>';
-        rows = rows + '</td>';
-	  	rows = rows + '</tr>';
-	});
- 
-	$("tbody").html(rows);
+	if (data != undefined && data != '') {
+		$.each( data.reverse(), function( key, value ) {
+		  	rows = rows + '<tr>';
+		  	rows = rows + '<td>'+value.NPWPD+'</td>';
+		  	rows = rows + '<td>'+value.URL+'</td>';
+	        rows = rows + '<td>'+value.Waktu+'</td>';
+	        rows = rows + '<td>';
+	        if (value.Status == '0') {
+	        	rows = rows + '<select onchange="Status(this)" class="form-control btn-sm" Status="'+value.NPWPD+'"><option value="0" selected><b>Enable</b></option><option value="1"><b>Disable</b></option></select>';
+	        } else {
+	        	rows = rows + '<select onchange="Status(this)" class="form-control btn-sm" Status="'+value.NPWPD+'"><option value="0"><b>Enable</b></option><option value="1" selected><b>Disable</b></option></select>';
+	        }
+	        rows = rows + '</td>';
+		  	rows = rows + '<td>';
+	        rows = rows + '<a href="#" EditWP="'+value.NPWPD+'" class="edit"><i class="material-icons" title="Edit">&#xE254;</i></a>';
+	        rows = rows + '&nbsp;&nbsp;&nbsp;<a href="#" HapusWP="'+value.NPWPD+'" class="delete"><i class="material-icons" title="Delete">&#xE872;</i></a>';
+	        rows = rows + '</td>';
+		  	rows = rows + '</tr>';
+		});
+		$("tbody").html(rows);
+	}
 }
